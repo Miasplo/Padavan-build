@@ -82,11 +82,10 @@ jobs:
           echo "CONFIG_FIRMWARE_INCLUDE_SSOBFS=n" >> .config #simple-obfs混淆插件
           ##科学上网##
           
-          # 添加：明确关闭OpenVPN（双重保险）
-          echo "CONFIG_FIRMWARE_INCLUDE_OPENVPN=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_OPENVPN=n" >> .config # 添加：明确关闭OpenVPN（双重保险）
           
           ##广告管理##
-          echo "CONFIG_FIRMWARE_INCLUDE_ADBYBY=y" >> .config #adbyby plus+
+          echo "CONFIG_FIRMWARE_INCLUDE_ADBYBY=n" >> .config #adbyby plus+
           ##DNS服务##
           echo "CONFIG_FIRMWARE_INCLUDE_SMARTDNS=n" >> .config #smartdns
           echo "CONFIG_FIRMWARE_INCLUDE_ADGUARDHOME=n" >> .config #adg DNS去AD
