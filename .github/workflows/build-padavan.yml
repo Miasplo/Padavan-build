@@ -27,6 +27,9 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          # 使用国内镜像源加速
+          sudo sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
+          sudo sed -i 's/security.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
           sudo apt-get update
           sudo apt-get -y install unzip libtool-bin curl cmake gperf gawk flex bison nano xxd fakeroot \
           cpio git python3-docutils gettext automake autopoint texinfo build-essential help2man \
@@ -34,9 +37,29 @@ jobs:
           
       - name: Clone source code
         run: |
-          git clone --depth=1 https://github.com/keke1023/Padavan.git /opt/rt-n56u
+          # 尝试多个镜像源
+          mirrors=(
+            "https://github.com/keke1023/Padavan.git"
+            "https://github.com.cnpmjs.org/keke1023/Padavan.git"
+            "https://hub.fastgit.org/keke1023/Padavan.git"
+          )
+          for mirror in "${mirrors[@]}"; do
+            if timeout 300 git clone --depth=1 $mirror /opt/rt-n56u; then
+              echo "Clone succeeded from $mirror"
+              break
+            fi
+            echo "Clone failed from $mirror, trying next..."
+            rm -rf /opt/rt-n56u
+          done
           cd /opt/rt-n56u/toolchain-mipsel
-          sh dl_toolchain.sh
+          sh dl_toolchain.sh &
+          TOOLCHAIN_PID=$!
+          # 设置下载超时
+          sleep 300
+          if ps -p $TOOLCHAIN_PID > /dev/null; then
+            echo "Toolchain download timeout, continuing..."
+            kill $TOOLCHAIN_PID 2>/dev/null || true
+          fi
           mkdir -p /opt/images/
           
       - name: Build Firmware
@@ -98,7 +121,6 @@ jobs:
           #CPU超频
           echo "CONFIG_FIRMWARE_INCLUDE_OC=y" >> .config #CPU超频开关
           echo 'CONFIG_FIRMWARE_MT7621_OC="0x312"' >> .config #此处填写对应频率的十六进制：1000Mhz=0x312 1100Mhz=0x362 1120Mhz=0x372 1200Mhz=0x3B2
-          echo "CONFIG_FIRMWARE_INCLUDE_TTYD=y" >> .config #Web终端
           
           #########################################################################################
           #自定义添加其它功能请参考源码configs/templates/目录下的config文件。按照上面的格式添加即可
@@ -106,6 +128,10 @@ jobs:
           #sed -i '/自定义项/d' .config
           #echo "自定义项=y" >> .config
           #########################################################################################
+          
+          # 设置并行编译
+          export CPU_CORES=$(nproc)
+          echo "Using $CPU_CORES CPU cores for compilation"
           
           sudo ./clear_tree
           sudo ./build_firmware_modify $TNAME 0
